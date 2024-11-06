@@ -11,6 +11,93 @@ from tensorflow.keras.models import load_model
 import numpy as np
 
 
+# Function to run prediction in a separate thread
+def predict_heart_disease_thread(user_id):
+    # Fetch the latest data for the logged-in user
+    heart_conditions = HeartDiseasePrediction.objects.filter(user_id=user_id).order_by('-prediction_date').first()
+
+    if heart_conditions:
+        new_person_data = {
+            'male': [heart_conditions.male],
+            'age': [heart_conditions.age],
+            'education': [heart_conditions.education],
+            'currentSmoker': [heart_conditions.currentSmoker],
+            'cigsPerDay': [heart_conditions.cigsPerDay],
+            'BPMeds': [heart_conditions.BPMeds],
+            'prevalentStroke': [heart_conditions.prevalentStroke],
+            'prevalentHyp': [heart_conditions.prevalentHyp],
+            'diabetes': [heart_conditions.diabetes],
+            'totChol': [heart_conditions.totChol],
+            'sysBP': [heart_conditions.sysBP],
+            'diaBP': [heart_conditions.diaBP],
+            'BMI': [heart_conditions.BMI],
+            'heartRate': [heart_conditions.heartRate],
+            'glucose': [heart_conditions.glucose]
+        }
+
+        # Load the trained model
+        ensemble_model = load_model('heartifyt.h5')
+        new_person_df = pd.DataFrame(new_person_data)
+        scaler = MinMaxScaler()
+        new_person_scaled = scaler.fit_transform(new_person_df)
+        new_person_cnn_gru = np.reshape(new_person_scaled, (new_person_scaled.shape[0], 1, new_person_scaled.shape[1]))
+        new_person_dnn = new_person_scaled
+        predicted_probs = ensemble_model.predict([new_person_cnn_gru, new_person_dnn])
+        prediction = (predicted_probs > 0.5).astype(int)
+        
+        result = {
+            'prediction': prediction[0][0],
+            'prediction_probability': predicted_probs[0][0]
+        }
+
+        # Save the prediction result to the database
+        prediction_entry = PredictionResult.objects.get(user_id=user_id)
+        prediction_entry.started = False
+        prediction_entry.result = result
+        prediction_entry.save()
+
+    else:
+        prediction_entry = PredictionResult.objects.get(user_id=user_id)
+        prediction_entry.started = False
+        prediction_entry.result = {'error': 'No heart condition data found for this user'}
+        prediction_entry.save()
+
+
+# Route to start prediction
+@login_required
+def predict_heart_disease_view(request):
+    # Check if the user already has a prediction result
+    prediction_entry, created = PredictionResult.objects.get_or_create(user=request.user)
+
+    if prediction_entry.started:
+        return JsonResponse({'started': True}, status=200)
+    
+    # Mark the prediction as started
+    prediction_entry.started = True
+    prediction_entry.result = None  # Reset the previous result
+    prediction_entry.save()
+
+    # Start a background thread for prediction
+    thread = threading.Thread(target=predict_heart_disease_thread, args=(request.user.id,))
+    thread.start()
+
+    return JsonResponse({'started': True}, status=200)
+
+
+# Route to get the prediction result
+@login_required
+def get_results_view(request):
+    prediction_entry = PredictionResult.objects.get(user=request.user)
+
+    if prediction_entry.started:
+        return JsonResponse({'message': 'Prediction in progress'}, status=202)
+
+    if prediction_entry.result:
+        return JsonResponse({'prediction': prediction_entry.result}, status=200)
+    else:
+        return JsonResponse({'message': 'No prediction result available'}, status=404)
+
+
 @csrf_exempt
 def signup_view(request):
     if request.method == 'POST':
