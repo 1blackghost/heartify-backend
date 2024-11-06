@@ -10,6 +10,7 @@ from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.models import load_model
 import numpy as np
 import threading
+import json
 
 def predict_heart_disease_thread(user_id):
     print("started!!")
@@ -91,10 +92,11 @@ def get_results_view(request):
 @csrf_exempt
 def signup_view(request):
     if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
-        email = request.POST.get('email')
-        phone_number = request.POST.get('phone_number')
+        data = json.loads(request.body)
+        username = data.get('username')
+        password = data.get('password')
+        email = data.get('email')
+        phone_number = data.get('phone_number')
 
         if User.objects.filter(username=username).exists():
             return JsonResponse({'error': 'Username already exists'}, status=400)
@@ -109,8 +111,9 @@ def signup_view(request):
 @csrf_exempt
 def login_view(request):
     if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
+        data = json.loads(request.body)
+        username = data.get('username')
+        password = data.get('password')
 
         user = authenticate(request, username=username, password=password)
         
@@ -126,22 +129,24 @@ def login_view(request):
 @login_required
 def save_heart_condition(request):
     if request.method == 'POST':
+        data = json.loads(request.body)
+
         heart_condition_data = {
-            'male': int(request.POST.get('male')),
-            'age': int(request.POST.get('age')),
-            'education': int(request.POST.get('education')),
-            'currentSmoker': int(request.POST.get('currentSmoker')),
-            'cigsPerDay': int(request.POST.get('cigsPerDay')),
-            'BPMeds': int(request.POST.get('BPMeds')),
-            'prevalentStroke': int(request.POST.get('prevalentStroke')),
-            'prevalentHyp': int(request.POST.get('prevalentHyp')),
-            'diabetes': int(request.POST.get('diabetes')),
-            'totChol': int(request.POST.get('totChol')),
-            'sysBP': int(request.POST.get('sysBP')),
-            'diaBP': int(request.POST.get('diaBP')),
-            'BMI': int(request.POST.get('BMI')),
-            'heartRate': int(request.POST.get('heartRate')),
-            'glucose': int(request.POST.get('glucose')),
+            'male': int(data.get('male')),
+            'age': int(data.get('age')),
+            'education': int(data.get('education')),
+            'currentSmoker': int(data.get('currentSmoker')),
+            'cigsPerDay': int(data.get('cigsPerDay')),
+            'BPMeds': int(data.get('BPMeds')),
+            'prevalentStroke': int(data.get('prevalentStroke')),
+            'prevalentHyp': int(data.get('prevalentHyp')),
+            'diabetes': int(data.get('diabetes')),
+            'totChol': int(data.get('totChol')),
+            'sysBP': int(data.get('sysBP')),
+            'diaBP': int(data.get('diaBP')),
+            'BMI': int(data.get('BMI')),
+            'heartRate': int(data.get('heartRate')),
+            'glucose': int(data.get('glucose')),
         }
 
         user = request.user
