@@ -4,17 +4,16 @@ from django.contrib.auth import authenticate, login as auth_login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User 
 from django.views.decorators.csrf import csrf_exempt
-from .models import HeartDiseasePrediction
+from .models import HeartDiseasePrediction,PredictionResult
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras.models import load_model
 import numpy as np
+import threading
 
-
-# Function to run prediction in a separate thread
 def predict_heart_disease_thread(user_id):
-    # Fetch the latest data for the logged-in user
-    heart_conditions = HeartDiseasePrediction.objects.filter(user_id=user_id).order_by('-prediction_date').first()
+    print("started!!")
+    heart_conditions = HeartDiseasePrediction.objects.filter(user_id=user_id).first()
 
     if heart_conditions:
         new_person_data = {
@@ -35,7 +34,6 @@ def predict_heart_disease_thread(user_id):
             'glucose': [heart_conditions.glucose]
         }
 
-        # Load the trained model
         ensemble_model = load_model('heartifyt.h5')
         new_person_df = pd.DataFrame(new_person_data)
         scaler = MinMaxScaler()
@@ -46,45 +44,37 @@ def predict_heart_disease_thread(user_id):
         prediction = (predicted_probs > 0.5).astype(int)
         
         result = {
-            'prediction': prediction[0][0],
-            'prediction_probability': predicted_probs[0][0]
+            'prediction': int(prediction[0][0]),  
+            'prediction_probability': float(predicted_probs[0][0])  
         }
+        print("SAVING!!")
 
-        # Save the prediction result to the database
         prediction_entry = PredictionResult.objects.get(user_id=user_id)
         prediction_entry.started = False
         prediction_entry.result = result
         prediction_entry.save()
-
+        print("STOPPING!!")
     else:
         prediction_entry = PredictionResult.objects.get(user_id=user_id)
         prediction_entry.started = False
         prediction_entry.result = {'error': 'No heart condition data found for this user'}
         prediction_entry.save()
+        print("STOPPING!!")
 
 
-# Route to start prediction
 @login_required
 def predict_heart_disease_view(request):
-    # Check if the user already has a prediction result
     prediction_entry, created = PredictionResult.objects.get_or_create(user=request.user)
-
-    if prediction_entry.started:
-        return JsonResponse({'started': True}, status=200)
-    
-    # Mark the prediction as started
     prediction_entry.started = True
-    prediction_entry.result = None  # Reset the previous result
+    prediction_entry.result = None  
     prediction_entry.save()
-
-    # Start a background thread for prediction
     thread = threading.Thread(target=predict_heart_disease_thread, args=(request.user.id,))
     thread.start()
+
 
     return JsonResponse({'started': True}, status=200)
 
 
-# Route to get the prediction result
 @login_required
 def get_results_view(request):
     prediction_entry = PredictionResult.objects.get(user=request.user)
