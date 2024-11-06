@@ -96,12 +96,11 @@ def signup_view(request):
         username = data.get('username')
         password = data.get('password')
         email = data.get('email')
-        phone_number = data.get('phone_number')
 
         if User.objects.filter(username=username).exists():
             return JsonResponse({'error': 'Username already exists'}, status=400)
 
-        user = User.objects.create_user(username=username, email=email, password=password,phone_number=phone_number)
+        user = User.objects.create_user(username=username, email=email, password=password)
 
         auth_login(request, user)
         return JsonResponse({'message': 'User registered successfully'}, status=201)
