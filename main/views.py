@@ -92,14 +92,16 @@ def get_results_view(request):
 @csrf_exempt
 def signup_view(request):
     if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
-        email = request.POST.get('email')
+        data = json.loads(request.body)
+        username = data.get('username')
+        password = data.get('password')
+        email = data.get('email')
+        phone_number = data.get('phone_number')
 
         if User.objects.filter(username=username).exists():
             return JsonResponse({'error': 'Username already exists'}, status=400)
 
-        user = User.objects.create_user(username=username, email=email, password=password)
+        user = User.objects.create_user(username=username, email=email, password=password,phone_number=phone_number)
 
         auth_login(request, user)
         return JsonResponse({'message': 'User registered successfully'}, status=201)
@@ -109,8 +111,9 @@ def signup_view(request):
 @csrf_exempt
 def login_view(request):
     if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
+        data = json.loads(request.body)
+        username = data.get('username')
+        password = data.get('password')
 
         user = authenticate(request, username=username, password=password)
         
