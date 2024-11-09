@@ -11,6 +11,36 @@ from tensorflow.keras.models import load_model
 import numpy as np
 import threading
 import json
+import requests
+import socket
+
+flask_url = 'https://heartify.pythonanywhere.com/storeIp/'
+
+def get_local_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+    finally:
+        s.close()
+    return ip
+
+def send_ip_to_flask():
+    local_ip = get_local_ip()
+    try:
+        response = requests.get(f"{flask_url}{local_ip}")
+        
+        print(f"Status Code: {response.status_code}")
+        print(f"Headers: {response.headers}")
+        
+        if response.headers.get('Content-Type') == 'application/json':
+            print("Response from Flask server:", response.json())
+        else:
+            print("Non-JSON response received:", response.text)
+            
+    except requests.RequestException as e:
+        print("Error sending IP to Flask server:", e)
+
 
 def predict_heart_disease_thread(user_id):
     print("started!!")
@@ -204,3 +234,4 @@ def get_heart_condition(request):
     ]
 
     return JsonResponse({'heart_conditions': predictions_data}, status=200)
+send_ip_to_flask()
