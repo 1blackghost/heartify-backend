@@ -27,15 +27,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["*"]
 CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOWED_ORIGINS = [
-    "https://127.0.0.1:3000",
-    "https://localhost:3000",
-]
-
-CSRF_TRUSTED_ORIGINS = [
-    "https://127.0.0.1:3000",
-    "https://localhost:3000",
-]
+CSRF_TRUSTED_ORIGINS = ["http://*"]
 
 CORS_ALLOW_CREDENTIALS = True
 # Application definition
